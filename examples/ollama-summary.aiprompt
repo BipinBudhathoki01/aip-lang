@@ -1,0 +1,11 @@
+system:
+    Summarize support messages accurately and briefly.
+user:
+    Message: {{ $message }}
+generate as Summary {
+    provider: "ollama",
+    model: "llama3.2",
+    max_tokens: 1024,
+    temperature: 0.2,
+    schema: { summary: string, urgent: bool }
+}

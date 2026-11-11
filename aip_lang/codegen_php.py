@@ -36,6 +36,7 @@ def generate_php_code(ast: AIPScriptAST, class_name: str = "AipExecutor", namesp
     target_class = ast.generate.target_class if ast.generate and ast.generate.target_class else "AnalysisResult"
     provider, key_name, model_name, temperature, max_tokens = provider_settings(ast)
     temperature_literal = 'null' if temperature is None else str(temperature)
+    key_expression = f"$apiKey ?? getenv('{key_name}')" if key_name else '$apiKey'
 
 
     schema_fields = ast.generate.schema if ast.generate else {}
@@ -128,8 +129,8 @@ class {class_name}
     public static function run({method_params}): {target_class}
     {{
         if ($maxRetries < 0) throw new InvalidArgumentException("maxRetries must be nonnegative.");
-        $key = $apiKey ?? getenv('{key_name}');
-        if (!$key) {{
+        $key = {key_expression};
+        if (self::PROVIDER !== 'ollama' && !$key) {{
             throw new InvalidArgumentException("{key_name} environment variable or apiKey parameter is required.");
         }}
 
@@ -188,12 +189,32 @@ class {class_name}
                         'store' => false, 'max_output_tokens' => {max_tokens},
                         'text' => ['format' => ['type' => 'json_schema', 'name' => 'aip_output', 'schema' => $expectedSchema, 'strict' => false]],
                     ];
-                }} else {{
+                }} elseif (self::PROVIDER === 'anthropic') {{
                     $endpoint = 'https://api.anthropic.com/v1/messages';
                     $headers = ['Content-Type: application/json', 'x-api-key: ' . $key, 'anthropic-version: 2023-06-01'];
                     $payload = ['model' => self::MODEL, 'system' => $instructions, 'messages' => $messages, 'max_tokens' => {max_tokens}];
+                }} elseif (self::PROVIDER === 'groq') {{
+                    $endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+                    $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
+                    array_unshift($messages, ['role' => 'system', 'content' => $instructions]);
+                    $payload = ['model' => self::MODEL, 'messages' => $messages, 'stream' => false,
+                                'max_completion_tokens' => {max_tokens}, 'response_format' => ['type' => 'json_object']];
+                }} else {{
+                    $base = rtrim(getenv('OLLAMA_BASE_URL') !== false ? getenv('OLLAMA_BASE_URL') : 'http://127.0.0.1:11434', '/');
+                    $url = parse_url($base);
+                    if ($url === false || !in_array($url['scheme'] ?? '', ['http', 'https'], true) || empty($url['host']) || isset($url['user']) || isset($url['pass']) || isset($url['query']) || isset($url['fragment'])) {{
+                        throw new InvalidArgumentException('OLLAMA_BASE_URL must be an HTTP(S) server URL without credentials, query, or fragment.');
+                    }}
+                    $endpoint = $base . '/api/chat';
+                    $headers = ['Content-Type: application/json'];
+                    array_unshift($messages, ['role' => 'system', 'content' => $instructions]);
+                    $payload = ['model' => self::MODEL, 'messages' => $messages, 'stream' => false,
+                                'format' => $expectedSchema, 'options' => ['num_predict' => {max_tokens}]];
                 }}
-                if (self::TEMPERATURE !== null) $payload['temperature'] = self::TEMPERATURE;
+                if (self::TEMPERATURE !== null) {{
+                    if (self::PROVIDER === 'ollama') $payload['options']['temperature'] = self::TEMPERATURE;
+                    else $payload['temperature'] = self::TEMPERATURE;
+                }}
             }}
 
             $ch = curl_init($endpoint);
@@ -232,9 +253,16 @@ class {class_name}
                 foreach ($apiData['content'] ?? [] as $part) {{
                     if (($part['type'] ?? '') === 'text') $candidateText .= $part['text'] ?? '';
                 }}
+            }} elseif (self::PROVIDER === 'groq') {{
+                $choice = $apiData['choices'][0] ?? [];
+                if (($choice['finish_reason'] ?? '') !== 'stop' || !empty($choice['message']['refusal'])) throw new RuntimeException('Groq returned an incomplete response or refusal.');
+                $candidateText = $choice['message']['content'] ?? '';
+            }} elseif (self::PROVIDER === 'ollama') {{
+                if (!empty($apiData['error']) || ($apiData['done'] ?? false) !== true || ($apiData['done_reason'] ?? '') !== 'stop') throw new RuntimeException('Ollama returned an error or incomplete response.');
+                $candidateText = $apiData['message']['content'] ?? '';
             }}
 
-            if (!$candidateText) {{
+            if (!is_string($candidateText) || trim($candidateText) === '') {{
                 throw new RuntimeException(self::PROVIDER . " returned no usable text.");
             }}
 

@@ -97,7 +97,7 @@ def run_command(args: argparse.Namespace) -> None:
     except ValueError as error:
         sys.stderr.write(f"[AIP Error] {error}\n")
         sys.exit(1)
-    api_key = os.environ.get(key_name)
+    api_key = os.environ.get(key_name) if key_name else None
     client = None
     if args.mock:
         client = MockGeminiClient()

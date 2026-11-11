@@ -2,7 +2,7 @@
 
 Compile the prompt during development or deployment. PHP 8.1+ with cURL and JSON is required at runtime; Python is only required to compile.
 
-The prompt's `provider` setting selects Gemini, OpenAI, or Anthropic Claude in the generated PHP class too. Pass the matching provider key through `apiKey`, or set its environment variable. See [providers](providers.md). For example, compiling `examples/openai-summary.aiprompt` generates an `OpenaiSummaryAip` executor; configure its key with your application's OpenAI service settings.
+The prompt's `provider` setting selects Gemini, OpenAI, Anthropic Claude, Groq, or Ollama in the generated PHP class too. Pass the matching cloud-provider key through `apiKey`, or set its environment variable. Ollama needs no key and reads `OLLAMA_BASE_URL` at runtime. See [providers](providers.md). For example, compiling `examples/openai-summary.aiprompt` generates an `OpenaiSummaryAip` executor; configure its key with your application's OpenAI service settings.
 
 ```bash
 aip compile examples/examiner.aiprompt --target php --out app/AI/ExaminerAip.php

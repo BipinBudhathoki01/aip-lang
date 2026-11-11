@@ -26,7 +26,7 @@ aip run examples/examiner.aiprompt --file examples/data.json --mock --pretty
 
 Use `--data` for an inline JSON object or `--file` for a JSON file. Inline values override file values. `--retries 2` allows one initial attempt plus two correction attempts. `--verbose` sends diagnostics to stderr. Successful stdout is JSON.
 
-`--mock` uses the built-in examiner fixture; use the local playground for schema-shaped fixtures with arbitrary schemas. Without a configured Gemini API key the CLI currently falls back to that fixture and warns on stderr. OpenAI and Anthropic instead require their own credentials. See [providers](providers.md).
+`--mock` uses the built-in examiner fixture; use the local playground for schema-shaped fixtures with arbitrary schemas. Without a configured Gemini API key the CLI currently falls back to that fixture and warns on stderr. OpenAI, Anthropic, and Groq instead require their own credentials. Ollama requires a reachable server with the selected model installed, without an API key. See [providers](providers.md).
 
 ## Compile
 
@@ -37,4 +37,4 @@ aip compile examples/examiner.aiprompt --target php --out generated/ExaminerAip.
 
 Without `--out`, generated source is written to stdout. PHP supports `--namespace App\AI`. Generated files are build outputs; regenerate them after editing the prompt.
 
-Python outputs need Pydantic, plus google-genai for Gemini execution. OpenAI and Anthropic use HTTPS directly. PHP outputs need PHP 8.1+, JSON, and cURL. Compiling does not call a provider.
+Python outputs need Pydantic, plus google-genai for Gemini execution. OpenAI, Anthropic, Groq, and Ollama use HTTP(S) directly. PHP outputs need PHP 8.1+, JSON, and cURL. Compiling does not call a provider.
