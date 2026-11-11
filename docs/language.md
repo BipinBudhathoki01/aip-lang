@@ -39,4 +39,6 @@ The supported subset does not include optional fields, enums, unions, arbitrary 
 
 ## Validation and retries
 
+Add `provider: "openai"` or `provider: "anthropic"` inside the generate block to change providers. Gemini remains the default. `max_tokens` sets a positive output token limit. See [providers](providers.md) for credentials, model defaults, and differences in provider-side output formatting. New providers omit temperature unless explicitly supplied; some models reject that option.
+
 The runtime validates JSON using generated Pydantic models. Generated PHP validates the supported schema subset before constructing the result DTO. Failed responses can be sent back with correction feedback up to the configured retry count. Provider errors and exhausted validation retries are reported to the caller. Structure validation does not check factual accuracy.

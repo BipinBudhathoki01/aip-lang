@@ -7,6 +7,7 @@ zero Python subprocess overhead, and built-in auto-healing schema validation.
 from __future__ import annotations
 import json
 from aip_parser import AIPScriptAST, TypeSpec, VariableToken, TextToken
+from aip_lang.providers import provider_settings
 
 
 def _type_spec_to_php_type(spec: TypeSpec) -> str:
@@ -33,8 +34,8 @@ def _type_spec_to_php_type(spec: TypeSpec) -> str:
 def generate_php_code(ast: AIPScriptAST, class_name: str = "AipExecutor", namespace: str = "App\\AI") -> str:
     """Compiles an AIPScriptAST into an independent PHP 8.1+ class."""
     target_class = ast.generate.target_class if ast.generate and ast.generate.target_class else "AnalysisResult"
-    model_name = ast.generate.model if ast.generate and ast.generate.model else "gemini-3.8-flash"
-    temperature = ast.generate.temperature if ast.generate and ast.generate.temperature is not None else 0.2
+    provider, key_name, model_name, temperature, max_tokens = provider_settings(ast)
+    temperature_literal = 'null' if temperature is None else str(temperature)
 
 
     schema_fields = ast.generate.schema if ast.generate else {}
@@ -118,16 +119,18 @@ class {target_class}
 class {class_name}
 {{
     public const MODEL = {json.dumps(model_name)};
-    public const TEMPERATURE = {temperature};
+    public const PROVIDER = {json.dumps(provider)};
+    public const TEMPERATURE = {temperature_literal};
 
     /**
-     * Executes the compiled AIP prompt against Gemini REST API with auto-healing.
+     * Executes the compiled AIP prompt against the selected provider with validation retries.
      */
     public static function run({method_params}): {target_class}
     {{
-        $key = $apiKey ?? getenv('GEMINI_API_KEY');
+        if ($maxRetries < 0) throw new InvalidArgumentException("maxRetries must be nonnegative.");
+        $key = $apiKey ?? getenv('{key_name}');
         if (!$key) {{
-            throw new InvalidArgumentException("GEMINI_API_KEY environment variable or apiKey parameter is required.");
+            throw new InvalidArgumentException("{key_name} environment variable or apiKey parameter is required.");
         }}
 
         $systemInstruction = trim({system_template});
@@ -158,6 +161,7 @@ class {class_name}
                     'responseMimeType' => 'application/json',
                     'responseSchema' => $expectedSchema,
                     'temperature' => self::TEMPERATURE,
+                    'maxOutputTokens' => {max_tokens},
                 ],
             ];
 
@@ -167,13 +171,36 @@ class {class_name}
                 ];
             }}
 
-            $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" . self::MODEL . ":generateContent?key=" . urlencode($key);
+            $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" . rawurlencode(self::MODEL) . ":generateContent";
+            $headers = ['Content-Type: application/json', 'x-goog-api-key: ' . $key];
+            if (self::PROVIDER !== 'gemini') {{
+                $messages = [];
+                foreach ($history as $turn) {{
+                    $messages[] = ['role' => $turn['role'] === 'model' ? 'assistant' : $turn['role'], 'content' => $turn['text']];
+                }}
+                $messages[] = ['role' => 'user', 'content' => $currentPrompt];
+                $instructions = $systemInstruction . "\\nReturn ONLY a JSON object matching this schema:\\n" . json_encode($expectedSchema);
+                if (self::PROVIDER === 'openai') {{
+                    $endpoint = 'https://api.openai.com/v1/responses';
+                    $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
+                    $payload = [
+                        'model' => self::MODEL, 'instructions' => $instructions, 'input' => $messages,
+                        'store' => false, 'max_output_tokens' => {max_tokens},
+                        'text' => ['format' => ['type' => 'json_schema', 'name' => 'aip_output', 'schema' => $expectedSchema, 'strict' => false]],
+                    ];
+                }} else {{
+                    $endpoint = 'https://api.anthropic.com/v1/messages';
+                    $headers = ['Content-Type: application/json', 'x-api-key: ' . $key, 'anthropic-version: 2023-06-01'];
+                    $payload = ['model' => self::MODEL, 'system' => $instructions, 'messages' => $messages, 'max_tokens' => {max_tokens}];
+                }}
+                if (self::TEMPERATURE !== null) $payload['temperature'] = self::TEMPERATURE;
+            }}
 
             $ch = curl_init($endpoint);
             curl_setopt_array($ch, [
                 CURLOPT_POST => true,
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_HTTPHEADER => $headers,
                 CURLOPT_POSTFIELDS => json_encode($payload),
                 CURLOPT_TIMEOUT => 30,
             ]);
@@ -184,14 +211,31 @@ class {class_name}
             curl_close($ch);
 
             if ($responseBody === false || $httpCode >= 400) {{
-                throw new RuntimeException("Gemini API call failed (HTTP $httpCode): " . ($curlError ?: $responseBody));
+                throw new RuntimeException(self::PROVIDER . " API call failed (HTTP $httpCode).");
             }}
 
             $apiData = json_decode($responseBody, true);
             $candidateText = $apiData['candidates'][0]['content']['parts'][0]['text'] ?? null;
+            if (self::PROVIDER === 'openai') {{
+                if (in_array($apiData['status'] ?? '', ['incomplete', 'failed', 'cancelled'], true)) throw new RuntimeException('OpenAI returned an incomplete or failed response.');
+                $candidateText = '';
+                foreach ($apiData['output'] ?? [] as $item) {{
+                    if (($item['type'] ?? '') !== 'message') continue;
+                    foreach ($item['content'] ?? [] as $part) {{
+                        if (($part['type'] ?? '') === 'refusal') throw new RuntimeException('OpenAI refused the request.');
+                        if (($part['type'] ?? '') === 'output_text') $candidateText .= $part['text'] ?? '';
+                    }}
+                }}
+            }} elseif (self::PROVIDER === 'anthropic') {{
+                if (in_array($apiData['stop_reason'] ?? '', ['max_tokens', 'refusal'], true)) throw new RuntimeException('Anthropic returned a truncated response or refusal.');
+                $candidateText = '';
+                foreach ($apiData['content'] ?? [] as $part) {{
+                    if (($part['type'] ?? '') === 'text') $candidateText .= $part['text'] ?? '';
+                }}
+            }}
 
             if (!$candidateText) {{
-                throw new RuntimeException("Gemini returned empty response: " . $responseBody);
+                throw new RuntimeException(self::PROVIDER . " returned no usable text.");
             }}
 
             // Validate JSON and Schema

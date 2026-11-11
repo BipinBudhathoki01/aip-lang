@@ -6,8 +6,10 @@ and built-in auto-healing logic.
 
 from __future__ import annotations
 import json
+import inspect
 from typing import Dict, Any, List
 from aip_parser import AIPScriptAST, TypeSpec, VariableToken, TextToken
+from aip_lang.providers import provider_settings, provider_request, provider_response, request_provider
 
 
 def _type_spec_to_py_type(spec: TypeSpec, models=None, prefix="Nested") -> str:
@@ -41,10 +43,8 @@ def _type_spec_to_py_type(spec: TypeSpec, models=None, prefix="Nested") -> str:
 def generate_python_code(ast: AIPScriptAST, module_name: str = "generated_aip") -> str:
     """Compiles an AIPScriptAST into an independent Python module."""
     target_class = ast.generate.target_class if ast.generate and ast.generate.target_class else "AipOutput"
-    model_name = ast.generate.model if ast.generate and ast.generate.model else "gemini-3.8-flash"
-    temperature = ast.generate.temperature if ast.generate and ast.generate.temperature is not None else 0.2
-
-    # Map deprecated aliases
+    provider, key_name, model_name, temperature, max_tokens = provider_settings(ast)
+    transport_source = "\n\n".join(inspect.getsource(function) for function in (provider_request, provider_response, request_provider))
 
     # Extract schema fields
     schema_fields = ast.generate.schema if ast.generate else {}
@@ -87,6 +87,8 @@ import json
 import os
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, ConfigDict, ValidationError
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 try:
     from google import genai
@@ -95,6 +97,8 @@ try:
 except ImportError:
     HAS_GENAI = False
 
+
+{transport_source}
 
 {nested_code}
 
@@ -110,11 +114,14 @@ def run_{target_class.lower()}(
     """
     Executes prompt with typed output schema {target_class} and auto-healing retries.
     """
-    key = api_key or os.environ.get("GEMINI_API_KEY")
-    if not key or not HAS_GENAI:
-        raise RuntimeError("GEMINI_API_KEY is required and google-genai package must be installed.")
-
-    client = genai.Client(api_key=key)
+    if max_retries < 0:
+        raise ValueError("max_retries must be nonnegative.")
+    key = api_key or os.environ.get({key_name!r})
+    if not key:
+        raise RuntimeError({key_name!r} + " is required.")
+    if {provider!r} == "gemini" and not HAS_GENAI:
+        raise RuntimeError("Install google-genai for Gemini execution.")
+    client = genai.Client(api_key=key) if {provider!r} == "gemini" else None
 
     # Render prompts
     system_instruction = f"""\\
@@ -130,7 +137,8 @@ def run_{target_class.lower()}(
         response_mime_type="application/json",
         response_schema={target_class},
         temperature={temperature},
-    )
+        max_output_tokens={max_tokens},
+    ) if {provider!r} == "gemini" else None
 
     current_prompt = user_prompt
     history = []
@@ -141,12 +149,15 @@ def run_{target_class.lower()}(
             full_contents.append(f"{{turn['role'].upper()}}: {{turn['text']}}")
         full_contents.append(current_prompt)
 
-        response = client.models.generate_content(
-            model="{model_name}",
-            contents="\\n\\n".join(full_contents),
-            config=config,
-        )
-        raw_text = response.text or ""
+        if {provider!r} == "gemini":
+            response = client.models.generate_content(
+                model={model_name!r}, contents="\\n\\n".join(full_contents), config=config,
+            )
+            raw_text = response.text or ""
+        else:
+            raw_text = request_provider({provider!r}, key, {model_name!r}, system_instruction,
+                                        current_prompt, {target_class}.model_json_schema(), history,
+                                        {temperature!r}, {max_tokens})
 
         try:
             parsed = json.loads(raw_text)

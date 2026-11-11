@@ -82,6 +82,10 @@ export function parseAipClient(source: string): { ast: AIPScriptAST | null; erro
         let temperature: number | null = null;
         const schema: Record<string, TypeSpecNode> = {};
         const options: Record<string, any> = {};
+        const providerMatch = innerContent.match(/provider\s*:\s*["']([^"']+)["']/);
+        if (providerMatch) options.provider = providerMatch[1];
+        const maxTokensMatch = innerContent.match(/max_tokens\s*:\s*(\d+)/);
+        if (maxTokensMatch) options.max_tokens = Number(maxTokensMatch[1]);
 
         // Extract model
         const modelMatch = innerContent.match(/model\s*:\s*["']([^"']+)["']/);

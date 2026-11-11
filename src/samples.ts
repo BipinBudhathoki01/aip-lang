@@ -87,4 +87,38 @@ generate as TicketResolution {
     }
 }`,
   },
+  {
+    id: "openai-summary",
+    name: "OpenAI summary",
+    description: "Summary contract using openai",
+    defaultVariables: { message: "I cannot access my account and need help today." },
+    code: `system:
+    Summarize support messages accurately and briefly.
+user:
+    Message: {{ $message }}
+generate as Summary {
+    provider: "openai",
+    model: "gpt-5-mini",
+    max_tokens: 8192,
+    schema: { summary: string, urgent: bool }
+}
+`,
+  },
+  {
+    id: "claude-summary",
+    name: "Claude summary",
+    description: "Summary contract using anthropic",
+    defaultVariables: { message: "I cannot access my account and need help today." },
+    code: `system:
+    Summarize support messages accurately and briefly.
+user:
+    Message: {{ $message }}
+generate as Summary {
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    schema: { summary: string, urgent: bool }
+}
+`,
+  },
 ];

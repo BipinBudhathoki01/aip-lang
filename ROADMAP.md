@@ -13,7 +13,7 @@ This is an early preview, not a delivery schedule. Please discuss major addition
 ## Next
 
 - [ ] Optional fields, enums, and schema constraints with cross-target parity.
-- [ ] Provider abstraction and a second model provider.
+- [x] Provider abstraction with OpenAI and Anthropic Claude in the runtime and generated Python/PHP.
 - [ ] Retry cost/latency reporting and configurable timeouts.
 - [ ] Editor syntax highlighting for `.aiprompt` and legacy `.aip`.
 - [ ] Publish a verified Python package after packaging checks.

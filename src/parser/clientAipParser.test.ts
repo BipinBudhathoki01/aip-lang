@@ -68,3 +68,10 @@ generate as Payload {
   assert.equal(schema.properties.scores.additionalProperties.type, 'integer');
   assert.deepEqual(schema.required, ['author', 'entries', 'scores']);
 });
+
+test('provider and output token settings are visible in the AST', () => {
+  const result = parseAipClient('user:\nHello\ngenerate { provider: "anthropic", max_tokens: 2048, schema: { answer: string } }');
+  assert.equal(result.error, null);
+  assert.equal(result.ast!.generate!.options.provider, 'anthropic');
+  assert.equal(result.ast!.generate!.options.max_tokens, 2048);
+});

@@ -18,11 +18,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Dict, Any
 
 from aip_parser import parse_aip
+from aip_lang.providers import provider_settings
 from aip_runtime import run_aip, AIPExecutionError, MockGeminiClient
 
 
@@ -90,11 +92,16 @@ def run_command(args: argparse.Namespace) -> None:
     variables = load_variables(args)
 
     # 4. Check API Key
-    api_key = os.environ.get("GEMINI_API_KEY")
+    try:
+        provider, key_name, *_ = provider_settings(ast)
+    except ValueError as error:
+        sys.stderr.write(f"[AIP Error] {error}\n")
+        sys.exit(1)
+    api_key = os.environ.get(key_name)
     client = None
     if args.mock:
         client = MockGeminiClient()
-    elif not api_key or api_key == "MY_GEMINI_API_KEY" or api_key.startswith("MY_"):
+    elif provider == "gemini" and (not api_key or api_key.startswith("MY_")):
         # If no key set, fallback to mock with warning to stderr
         sys.stderr.write("[AIP Warning] GEMINI_API_KEY not found or placeholder in environment. Running with deterministic mock client.\n")
         client = MockGeminiClient()
@@ -147,7 +154,9 @@ def compile_command(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     target = args.target.lower()
-    base_name = script_path.stem.capitalize()
+    base_name = ''.join(part[:1].upper() + part[1:] for part in re.split(r'[^A-Za-z0-9_]+', script_path.stem) if part)
+    if not base_name or base_name[0].isdigit():
+        base_name = 'Prompt' + base_name
 
     if target in ("py", "python"):
         code = generate_python_code(ast, module_name=script_path.stem)

@@ -12,6 +12,7 @@ nav:
   - Overview: index.md
   - Quick start: quickstart.md
   - Language: language.md
+  - Providers: providers.md
   - CLI: cli.md
   - PHP & Laravel: php.md
   - Contributing: contributing.md

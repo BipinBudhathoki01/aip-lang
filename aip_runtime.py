@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AIP (AI Scripting DSL) Execution Runtime
-Executes parsed .aip AST against Google Gemini API with:
+Executes parsed prompt contracts against Gemini, OpenAI, or Anthropic with:
 1. Strict dynamic Pydantic model synthesis
 2. Safe template variable interpolation with KeyError enforcement
 3. Auto-healing correction loop for invalid JSON or Pydantic validation failures (up to 2 retries)
@@ -16,6 +16,7 @@ from typing import Dict, Any, Optional, Union, List, Type, Tuple
 from dataclasses import asdict
 
 from pydantic import BaseModel, ConfigDict, create_model, ValidationError
+from aip_lang.providers import ProviderClient, provider_settings
 
 from aip_parser import (
     parse_aip,
@@ -224,13 +225,13 @@ def run_aip(
     verbose: bool = False,
 ) -> Dict[str, Any]:
     """
-    Executes an AIP AST against Google Gemini with strict schema enforcement
+    Executes an AIP AST against the selected provider with strict schema enforcement
     and automatic error-correction retries.
 
     Args:
         ast: Parsed AIPScriptAST node or raw .aip source string.
         variables: Dictionary of variable values for template {{ $var }} replacement.
-        client: Optional google.genai.Client or MockGeminiClient.
+        client: Optional google.genai.Client or custom/mock models.generate_content adapter.
         max_retries: Maximum correction retries on JSON/Pydantic validation failure.
         verbose: If True, prints execution & auto-healing logs.
 
@@ -248,26 +249,19 @@ def run_aip(
     # 2. Variable replacement (Throws KeyError if missing)
     system_instruction, user_content = interpolate_ast_prompts(ast, variables)
 
-    # 3. Model & Schema resolution
-    model_name = "gemini-3.8-flash"
-    temperature = 0.2
-    target_class_name = "AnalysisResult"
-    schema_dict: Dict[str, TypeSpec] = {}
-
-    if ast.generate:
-        if ast.generate.model:
-            model_name = ast.generate.model
-        if ast.generate.temperature is not None:
-            temperature = ast.generate.temperature
-        if ast.generate.target_class:
-            target_class_name = ast.generate.target_class
-        schema_dict = ast.generate.schema
+    if max_retries < 0:
+        raise ValueError("max_retries must be nonnegative.")
+    provider, key_name, model_name, temperature, max_tokens = provider_settings(ast)
+    target_class_name = ast.generate.target_class if ast.generate and ast.generate.target_class else "AnalysisResult"
+    schema_dict = ast.generate.schema if ast.generate else {}
 
     # Build dynamic Pydantic model for schema enforcement
     PydanticModel = ast_to_pydantic_model(schema_dict, target_class_name)
     expected_json_schema = PydanticModel.model_json_schema()
 
-    # 4. Initialize Gemini client if none provided
+    # 4. Initialize the selected provider client if none was supplied
+    if client is None and provider != "gemini":
+        client = ProviderClient(provider, max_tokens)
     if client is None:
         api_key = os.environ.get("GEMINI_API_KEY")
         if api_key and api_key != "MY_GEMINI_API_KEY" and not api_key.startswith("MY_") and HAS_GENAI:
@@ -297,6 +291,7 @@ def run_aip(
                     response_mime_type="application/json",
                     response_schema=PydanticModel,
                     temperature=temperature,
+                    max_output_tokens=max_tokens,
                 )
                 # Combine history + current prompt
                 full_contents = []
@@ -320,15 +315,16 @@ def run_aip(
                         "response_mime_type": "application/json",
                         "response_schema": expected_json_schema,
                         "temperature": temperature,
+                        "history": conversation_history,
                     },
                 )
                 raw_response_text = response.text or ""
 
         except Exception as api_err:
-            failure_log.append(f"Gemini API request failed: {str(api_err)}")
+            failure_log.append(f"{provider} API request failed: {str(api_err)}")
             if attempt == max_retries:
                 raise AIPExecutionError(
-                    f"Gemini API request failed after {max_retries + 1} attempts: {api_err}",
+                    f"{provider} API request failed after {max_retries + 1} attempts: {api_err}",
                     failure_log,
                     raw_response_text,
                 ) from api_err
@@ -374,7 +370,7 @@ def run_aip(
             )
             current_prompt = correction_prompt
             if verbose:
-                print(f"[AIP Runtime Auto-Healing] Sending correction prompt to Gemini (Retry {attempt + 1}/{max_retries})...", file=sys.stderr)
+                print(f"[AIP Runtime Auto-Healing] Sending correction prompt to {provider} (Retry {attempt + 1}/{max_retries})...", file=sys.stderr)
 
         attempt += 1
 

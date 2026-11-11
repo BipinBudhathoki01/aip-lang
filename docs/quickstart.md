@@ -24,7 +24,7 @@ The mock returns a deterministic examiner fixture. It verifies integration witho
 
 Set `GEMINI_API_KEY` in your shell. In PowerShell use `$env:GEMINI_API_KEY = 'your-key'`; on macOS/Linux use `export GEMINI_API_KEY='your-key'`. Then run without `--mock`. Choose a model available to your account. Live requests may incur provider charges; tests do not require them.
 
-The CLI currently falls back to mock mode when the key is missing and warns on stderr. A `.env` file is loaded by the local web server only, not the Python CLI.
+The CLI's Gemini integration currently falls back to mock mode when its key is missing and warns on stderr. OpenAI and Anthropic require their own keys and fail clearly if missing. See [provider configuration](providers.md). A `.env` file is loaded by the local web server only, not the Python CLI.
 
 ## Local playground
 

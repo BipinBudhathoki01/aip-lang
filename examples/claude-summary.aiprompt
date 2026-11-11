@@ -1,0 +1,10 @@
+system:
+    Summarize support messages accurately and briefly.
+user:
+    Message: {{ $message }}
+generate as Summary {
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    schema: { summary: string, urgent: bool }
+}
