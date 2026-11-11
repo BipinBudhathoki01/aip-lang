@@ -17,15 +17,13 @@ STDERR:
 from __future__ import annotations
 import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
 from typing import Dict, Any
 
 from aip_parser import parse_aip
-from aip_lang.providers import provider_settings
-from aip_runtime import run_aip, AIPExecutionError, MockGeminiClient
+from aip_runtime import run_aip, AIPExecutionError
 
 
 def load_variables(args: argparse.Namespace) -> Dict[str, Any]:
@@ -91,27 +89,15 @@ def run_command(args: argparse.Namespace) -> None:
     # 3. Load variables
     variables = load_variables(args)
 
-    # 4. Check API Key
-    try:
-        provider, key_name, *_ = provider_settings(ast)
-    except ValueError as error:
-        sys.stderr.write(f"[AIP Error] {error}\n")
-        sys.exit(1)
-    api_key = os.environ.get(key_name) if key_name else None
-    client = None
     if args.mock:
-        client = MockGeminiClient()
-    elif provider == "gemini" and (not api_key or api_key.startswith("MY_")):
-        # If no key set, fallback to mock with warning to stderr
-        sys.stderr.write("[AIP Warning] GEMINI_API_KEY not found or placeholder in environment. Running with deterministic mock client.\n")
-        client = MockGeminiClient()
+        sys.stderr.write("[AIP Mock] Returning synthetic schema-shaped fixture values; no provider is called.\n")
 
     # 5. Execute with auto-healing loop
     try:
         result = run_aip(
             ast=ast,
             variables=variables,
-            client=client,
+            mock=args.mock,
             max_retries=args.retries,
             verbose=args.verbose,
         )
@@ -124,6 +110,9 @@ def run_command(args: argparse.Namespace) -> None:
             sys.stderr.write("Detailed failure history:\n")
             for line in exec_err.errors:
                 sys.stderr.write(f"  {line}\n")
+        sys.exit(1)
+    except ValueError as config_err:
+        sys.stderr.write(f"[AIP Configuration Error] {config_err}\n")
         sys.exit(1)
     except Exception as unhandled_err:
         sys.stderr.write(f"[AIP Unexpected Error] {unhandled_err}\n")
@@ -240,7 +229,7 @@ def main() -> None:
     run_parser.add_argument("--retries", type=int, default=2, help="Max auto-healing retries (default: 2)")
     run_parser.add_argument("--pretty", action="store_true", help="Pretty-print the output JSON")
     run_parser.add_argument("--verbose", "-v", action="store_true", help="Write runtime auto-healing logs to stderr")
-    run_parser.add_argument("--mock", action="store_true", help="Force execution using mock Gemini client")
+    run_parser.add_argument("--mock", action="store_true", help="Return synthetic schema-shaped fixtures without calling a provider")
 
     # 2. Subcommand: compile
     compile_parser = subparsers.add_parser("compile", help="Compile .aip script into native Python or PHP code")

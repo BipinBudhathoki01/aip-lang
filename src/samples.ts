@@ -156,4 +156,30 @@ generate as Summary {
 }
 `,
   },
+  {
+    id: "invoice-extraction",
+    name: "Invoice extraction",
+    description: "Extract a nested vendor and line items from synthetic invoice text",
+    defaultVariables: {"invoice_text": "DEMONSTRATION INVOICE — SYNTHETIC DATA\nInvoice: DEMO-001\nIssued: 2026-01-15\nVendor: Example Office Supplies\nAddress: 10 Example Street\nCurrency: USD\nItems:\nNotebook | Quantity: 2 | Unit price: 12.50\nTotal: 25.00 USD"},
+    code: `system:
+    Extract an invoice into the declared schema. Use only information present in
+    the input. Preserve the currency code and line item values. Do not invent
+    vendors or amounts. This example uses synthetic demonstration data.
+user:
+    Invoice text:
+    {{ $invoice_text }}
+generate as InvoiceResult {
+    model: "gemini-3.8-flash",
+    temperature: 0.1,
+    schema: {
+        invoice_number: string,
+        issued_on: string,
+        currency: string,
+        vendor: { name: string, address: string },
+        items: list[{ description: string, quantity: int, unit_price: float }],
+        total: float
+    }
+}
+`,
+  },
 ];

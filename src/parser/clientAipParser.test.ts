@@ -1,6 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import { parseAipClient } from './clientAipParser';
+
+const sharedCases = JSON.parse(readFileSync(new URL('../../tests/fixtures/parser_cases.json', import.meta.url), 'utf8'));
+for (const fixture of sharedCases) {
+  test(`shared fixture: ${fixture.name}`, () => {
+    const result = parseAipClient(fixture.source);
+    if (fixture.invalid) {
+      assert.equal(result.ast, null);
+      assert.match(result.error!, /Line \d+, column \d+/);
+      return;
+    }
+    assert.equal(result.error, null);
+    assert.deepEqual(result.ast!.variables, fixture.expected.variables);
+    assert.deepEqual(result.ast!.generate?.json_schema ?? null, fixture.expected.schema);
+    for (const key of ['model', 'temperature', 'options'] as const) {
+      if (key in fixture.expected) assert.deepEqual(result.ast!.generate![key], fixture.expected[key]);
+    }
+    if (fixture.expected.user_contains) assert.ok(result.ast!.user_prompt!.raw_template.includes(fixture.expected.user_contains));
+  });
+}
 
 const SAMPLE_AIP = `system:
     You are an expert examiner.

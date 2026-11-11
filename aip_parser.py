@@ -15,8 +15,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Any, Optional, Union
 import json
+import re
 import sys
-from lark import Lark, Transformer, Token, Tree
+from lark import Lark, Transformer, Token, Tree, UnexpectedInput
+from lark.exceptions import VisitError
 
 # ---------------------------------------------------------------------------
 # 1. Formal Lark EBNF Grammar
@@ -42,7 +44,7 @@ var_ref: "{{" "$" CNAME "}}"
 
 // Text fragment: matches any character until a variable tag {{
 // or a top-level section header (system:, user:, or generate [...]{)
-TEXT_FRAGMENT: /(?:(?!\{\{|\b(?:system|user)\s*:|\bgenerate\b(?:\s+as\s+[a-zA-Z_]\w*)?\s*\{)[\s\S])+/
+TEXT_FRAGMENT: /(?:(?!\{\{|(?m:^[ \t]*(?:system|user)[ \t]*:)|(?m:^[ \t]*generate\b(?:\s+as\s+[a-zA-Z_]\w*)?\s*\{))[\s\S])+/
 
 // Generate block: specifies target class, model options, and schema
 generate_block: "generate" ["as" CNAME] "{" [config_entries] "}"
@@ -357,7 +359,7 @@ class AIPTransformer(Transformer):
     def string_val(self, items):
         raw = str(items[0])
         # strip enclosing quotes and resolve escaped characters
-        return raw[1:-1].encode("utf-8").decode("unicode_escape")
+        return json.loads(raw)
 
     def number_val(self, items):
         val = str(items[0])
@@ -407,11 +409,21 @@ class AIPTransformer(Transformer):
         gen = GenerateBlock(target_class=target_class)
         for k, v in configs:
             if k == "model":
+                if not isinstance(v, str):
+                    raise ValueError('model must be a quoted string.')
                 gen.model = v
             elif k == "temperature":
+                if isinstance(v, bool) or not isinstance(v, (int, float)):
+                    raise ValueError('temperature must be a number.')
                 gen.temperature = float(v)
-            elif k == "schema" and isinstance(v, dict):
+            elif k == "schema":
+                if not isinstance(v, dict):
+                    raise ValueError('schema must be an object of field: type declarations.')
                 gen.schema = v
+            elif k == 'provider':
+                if not isinstance(v, str):
+                    raise ValueError('provider must be a quoted string.')
+                gen.options[k] = v
             else:
                 gen.options[k] = v
         return ("generate", gen)
@@ -432,17 +444,81 @@ class AIPTransformer(Transformer):
 # 4. High-Level Parser Interface
 # ---------------------------------------------------------------------------
 
+class AIPSyntaxError(ValueError):
+    """A readable diagnostic retaining structured source coordinates."""
+    def __init__(self, source: str, offset: int, message: str):
+        offset = max(0, min(offset, len(source)))
+        self.line = source.count('\n', 0, offset) + 1
+        start = source.rfind('\n', 0, offset) + 1
+        self.column = offset - start + 1
+        line = source.split('\n')[self.line - 1].rstrip('\r')
+        caret = len(line[:self.column - 1].expandtabs(4))
+        super().__init__(f'{message}\nLine {self.line}, column {self.column}\n{self.line} | {line.expandtabs(4)}\n' + ' ' * (len(str(self.line)) + 3 + caret) + '^')
+
+
+def validate_schema_types(ast: AIPScriptAST, source: str) -> None:
+    primitives = {'int', 'integer', 'float', 'number', 'str', 'string', 'bool', 'boolean'}
+    def validate(spec, field_name):
+        if spec.fields is not None:
+            for name, child in spec.fields.items():
+                validate(child, name)
+            return
+        name = spec.name.lower()
+        required = 1 if name in ('list', 'array') else 2 if name in ('dict', 'map') else 0
+        reason = None
+        if name not in primitives | {'list', 'array', 'dict', 'map'}:
+            reason = f'Unsupported schema type {spec.name!r}.'
+        elif len(spec.type_args) != required:
+            reason = f'Type {spec.name!r} requires {required} type argument(s).'
+        elif name in ('dict', 'map') and spec.type_args[0].name.lower() not in ('str', 'string'):
+            reason = 'Dictionary keys must use string or str.'
+        if reason:
+            match = re.search(r'\b' + re.escape(field_name) + r'\s*:', source)
+            raise AIPSyntaxError(source, match.start() if match else 0, reason)
+        for child in spec.type_args:
+            validate(child, field_name)
+    for name, spec in (ast.generate.schema if ast.generate else {}).items():
+        validate(spec, name)
+
+
 class AIPParser:
     """Reusable AIP parser instance."""
 
     def __init__(self):
-        self._lark = Lark(AIP_GRAMMAR, parser="earley")
+        self._lark = Lark(AIP_GRAMMAR, parser="earley", propagate_positions=True)
         self._transformer = AIPTransformer()
 
     def parse(self, text: str) -> AIPScriptAST:
         """Parses an .aip source string into an AIPScriptAST."""
-        tree = self._lark.parse(text)
-        return self._transformer.transform(tree)
+        for match in re.finditer(r'^[ \t]*generate\s+as\b', text, re.MULTILINE):
+            if not re.match(r'generate\s+as\s+[a-zA-Z_]\w*\s*\{', text[match.start():].lstrip()):
+                raise AIPSyntaxError(text, match.start(), 'Expected generate as ClassName { ... }.')
+        try:
+            tree = self._lark.parse(text)
+            for section in tree.children:
+                if isinstance(section, Tree):
+                    start = section.meta.start_pos
+                    prefix = text[text.rfind('\n', 0, start) + 1:start]
+                    if prefix.strip():
+                        raise AIPSyntaxError(text, start, 'Section headers must begin on their own line.')
+                    if section.data in ('system_block', 'user_block') and not re.match(r'(?:system|user)[ \t]*:', text[start:]):
+                        raise AIPSyntaxError(text, start, 'Keep the section name and colon on the same line.')
+            ast = self._transformer.transform(tree)
+        except UnexpectedInput as error:
+            position = getattr(error, 'pos_in_stream', -1)
+            if position is None or position < 0:
+                position = len(text)
+            message = 'Unexpected end of file; check for a missing closing brace or incomplete declaration.' if position >= len(text) else 'Unexpected syntax; check section headers, commas, and field: type declarations.'
+            raise AIPSyntaxError(text, position, message) from None
+        except VisitError as error:
+            if not isinstance(error.orig_exc, ValueError):
+                raise
+            message = str(error.orig_exc)
+            key = message.split()[0]
+            match = re.search(r'\b' + re.escape(key) + r'\s*:', text)
+            raise AIPSyntaxError(text, match.start() if match else 0, message) from None
+        validate_schema_types(ast, text)
+        return ast
 
     def parse_file(self, filepath: str) -> AIPScriptAST:
         """Reads and parses an .aip file from disk."""

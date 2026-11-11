@@ -5,10 +5,10 @@ This is an early preview, not a delivery schedule. Please discuss major addition
 ## Current focus
 
 - [ ] Expand generated Python/PHP behavior tests, especially nested schemas and escaping.
-- [ ] Align browser parsing and Python parsing with a shared fixture suite.
-- [ ] Improve line/column diagnostics and reject unsupported schema types clearly.
+- [x] Align documented browser/Python parsing cases with a shared fixture suite.
+- [x] Add line/column diagnostics and reject unsupported schema types.
 - [ ] Add practical Laravel and Django integration examples.
-- [ ] Make mock execution explicit in all runtime entry points.
+- [x] Require explicit schema-shaped mock execution.
 
 ## Next
 
@@ -26,3 +26,12 @@ This is an early preview, not a delivery schedule. Please discuss major addition
 - [ ] Framework adapters informed by real integrations.
 
 Suggest a feature by describing a concrete workflow and what AIP would make easier.
+
+## Public release and adoption tasks
+
+- [ ] Live provider and generated-executor verification (#8).
+- [ ] Fresh installation checks on Windows, Linux, and macOS (#9).
+- [ ] Verified versioned preview/Python package release (#10).
+- [ ] VS Code syntax highlighting (#11).
+- [ ] Five-developer feedback round and continuing integrations (#12).
+- [ ] Two-minute demonstration and launch guide (#13).

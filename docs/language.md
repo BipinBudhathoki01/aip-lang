@@ -13,7 +13,7 @@ user:
 
 Variables use `{{ $identifier }}`. The runtime requires every referenced variable before calling the model. Prompt values are inserted as text, not evaluated as Python or PHP. User-provided text can still influence model behavior; this syntax does not prevent prompt injection.
 
-Section headers are reserved syntax. The current parser can interpret `system:`, `user:`, or a `generate {` declaration inside prompt text as a section boundary. Avoid those literal patterns until escaping is supported.
+Section headers are reserved at the beginning of a line, optionally indented. Put each declaration on its own line and keep `system:` / `user:` names and colons together. Inline mentions such as `Explain system: text` remain prose. Literal line-leading headers still have no escape syntax. See [parser behavior](parser-behavior.md).
 
 ## Generation and schema
 
@@ -35,7 +35,7 @@ generate as MessageResult {
 
 Primitive aliases: `str`/`string`, `int`/`integer`, `float`/`number`, `bool`/`boolean`. Collections: `list[T]`/`array[T]`, `dict[string, T]`/`map[string, T]`. Anonymous nested objects are supported. All declared fields are required. JSON object keys are strings.
 
-The supported subset does not include optional fields, enums, unions, arbitrary constraints, or full JSON Schema. Unknown types currently fall back to strings; this behavior is tracked for improvement. Use only the documented types.
+The supported subset does not include optional fields, enums, unions, arbitrary constraints, or full JSON Schema. Unknown types, incorrect generic arity, and non-string dictionary keys are rejected with a source diagnostic. Use only the documented types.
 
 ## Validation and retries
 

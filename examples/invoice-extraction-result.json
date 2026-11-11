@@ -1,0 +1,13 @@
+{
+  "invoice_number": "DEMO-001",
+  "issued_on": "2026-01-15",
+  "currency": "USD",
+  "vendor": {
+    "name": "Example Office Supplies",
+    "address": "10 Example Street"
+  },
+  "items": [
+    { "description": "Notebook", "quantity": 2, "unit_price": 12.5 }
+  ],
+  "total": 25.0
+}

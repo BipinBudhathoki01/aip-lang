@@ -50,7 +50,9 @@ aip check examples/examiner.aiprompt
 aip run examples/examiner.aiprompt --file examples/data.json --mock --pretty
 ```
 
-Mock output is a deterministic test fixture, not a model-generated assessment. The examiner fixture returns `score`, `passed`, and `notes`. Without a Gemini API key the CLI currently falls back to mock mode and warns on stderr. To make a live request, configure `GEMINI_API_KEY` in your shell and choose a model available to your account. The CLI does not load `.env` automatically.
+Mock output contains deterministic schema-shaped fixture values, not a model-generated assessment. For the examiner example, `score` is zero, `passed` is false, and `notes` is empty. Mock mode requires explicit `--mock` (or `mock=True` in Python) and is labeled on stderr. Missing cloud-provider credentials now fail rather than returning fake results. The CLI does not load `.env` automatically.
+
+Try the complete [invoice extraction guide](docs/invoice-example.md) for a nested schema, synthetic data, offline fixtures, and Python/PHP/Laravel integration. See [parser behavior and diagnostics](docs/parser-behavior.md) for shared test coverage and syntax boundaries.
 
 ## CLI
 

@@ -17,6 +17,7 @@ from dataclasses import asdict
 
 from pydantic import BaseModel, ConfigDict, create_model, ValidationError
 from aip_lang.providers import ProviderClient, provider_settings
+from aip_lang.mock import sample_value
 
 from aip_parser import (
     parse_aip,
@@ -223,6 +224,7 @@ def run_aip(
     client: Optional[Any] = None,
     max_retries: int = 2,
     verbose: bool = False,
+    mock: bool = False,
 ) -> Dict[str, Any]:
     """
     Executes an AIP AST against the selected provider with strict schema enforcement
@@ -234,6 +236,7 @@ def run_aip(
         client: Optional google.genai.Client or custom/mock models.generate_content adapter.
         max_retries: Maximum correction retries on JSON/Pydantic validation failure.
         verbose: If True, prints execution & auto-healing logs.
+        mock: Explicitly return deterministic schema-shaped fixture values without a provider call.
 
     Returns:
         Validated result dictionary adhering strictly to the generate schema.
@@ -259,17 +262,22 @@ def run_aip(
     PydanticModel = ast_to_pydantic_model(schema_dict, target_class_name)
     expected_json_schema = PydanticModel.model_json_schema()
 
+    # Fixtures must be selected explicitly, never inferred from missing credentials.
+    if mock and client is not None:
+        raise ValueError('Choose mock=True or an explicit client, not both.')
+    if mock:
+        fixture = {name: sample_value(spec) for name, spec in schema_dict.items()}
+        client = MockGeminiClient([json.dumps(fixture)])
     # 4. Initialize the selected provider client if none was supplied
     if client is None and provider != "gemini":
         client = ProviderClient(provider, max_tokens)
     if client is None:
         api_key = os.environ.get("GEMINI_API_KEY")
-        if api_key and api_key != "MY_GEMINI_API_KEY" and not api_key.startswith("MY_") and HAS_GENAI:
-            client = genai.Client(api_key=api_key)
-        else:
-            if verbose:
-                print("[AIP Runtime] GEMINI_API_KEY not configured or placeholder. Using MockGeminiClient.", file=sys.stderr)
-            client = MockGeminiClient()
+        if not api_key or api_key.startswith('MY_'):
+            raise ValueError('GEMINI_API_KEY is required for Gemini. Use --mock or mock=True for offline fixtures.')
+        if not HAS_GENAI:
+            raise RuntimeError('Install google-genai for Gemini execution.')
+        client = genai.Client(api_key=api_key)
 
     # 5. Auto-healing Execution Loop
     conversation_history: List[Dict[str, str]] = []

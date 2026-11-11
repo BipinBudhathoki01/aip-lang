@@ -29,6 +29,7 @@ No API key is needed for tests or the playground's mock run. Never commit creden
 | `playground_runner.py`, `server.ts` | Local playground bridge |
 | `src/` | React UI and browser parser |
 | `tests/` | Authoritative Python regression tests |
+| `tests/fixtures/parser_cases.json` | Shared browser/Python syntax and schema corpus |
 | `docs/` | Documentation source |
 
 Add Python tests under `tests/`.
@@ -45,6 +46,8 @@ npm run build
 For compiler changes, include a regression case that compiles a prompt and checks the generated program's behavior. PHP tests skip locally when PHP is unavailable; CI installs it. Do not commit generated output, virtual environments, dependency folders, or secrets.
 
 Keep changes focused and explain the problem, resulting behavior, and validation. Open an issue before large syntax or architecture changes so we can agree on scope. Documentation fixes and small bug fixes can go straight to a pull request. Maintainers review and merge contributions; contributors do not need repository write access.
+
+For parser changes, add a case to the shared JSON corpus with explicit expected variables and JSON Schema, or mark it invalid. Both Python tests and `npm test` consume it without an API key. See `docs/parser-behavior.md` for coverage and known boundaries. For integration examples, distinguish hand-authored reference data, synthetic fixtures, and live-provider results.
 
 ## First contributions
 
