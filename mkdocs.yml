@@ -1,0 +1,20 @@
+site_name: AIP Lang
+site_description: Typed prompt contracts for Python and PHP
+site_url: https://bipinbudhathoki01.github.io/aip-lang/
+repo_url: https://github.com/BipinBudhathoki01/aip-lang
+repo_name: GitHub
+theme:
+  name: mkdocs
+  color_mode: light
+  user_color_mode_toggle: true
+  custom_dir: docs/theme
+nav:
+  - Overview: index.md
+  - Quick start: quickstart.md
+  - Language: language.md
+  - CLI: cli.md
+  - PHP & Laravel: php.md
+  - Contributing: contributing.md
+  - Playground: https://bipinbudhathoki01.github.io/aip-lang/playground/
+extra_css:
+  - stylesheets/extra.css

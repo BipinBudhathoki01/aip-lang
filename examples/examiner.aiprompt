@@ -1,0 +1,16 @@
+system:
+    You are an expert examiner.
+
+user:
+    Analyze the following submission by {{ $name }}:
+    "{{ $text }}"
+
+generate as AnalysisResult {
+    model: "gemini-3.8-flash",
+    temperature: 0.2,
+    schema: {
+        score: int,
+        passed: bool,
+        notes: list[string]
+    }
+}

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aip-lang"
+version = "0.1.0"
+description = "Typed AI prompt contracts with Python and PHP code generation and bounded validation retries."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "AIP Contributors" }
+]
+keywords = ["llm", "dsl", "compiler", "gemini", "pydantic", "lark", "ai", "php"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "lark>=1.1.0",
+    "pydantic>=2.0.0,<3",
+    "google-genai>=2.0.0,<3",
+]
+
+[project.urls]
+Homepage = "https://bipinbudhathoki01.github.io/aip-lang/"
+Repository = "https://github.com/BipinBudhathoki01/aip-lang"
+Issues = "https://github.com/BipinBudhathoki01/aip-lang/issues"
+
+[project.scripts]
+aip = "aip_runner:main"
+aip-runner = "aip_runner:main"
+
+[tool.setuptools]
+py-modules = ["aip_parser", "aip_runtime", "aip_runner"]
+packages = ["aip_lang"]

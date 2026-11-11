@@ -1,0 +1,3 @@
+include LICENSE README.md
+include playground_runner.py
+recursive-include examples *.aip *.aiprompt *.json

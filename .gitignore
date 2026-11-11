@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+.deps/
+*.egg-info/
+.pytest_cache/
+generated/
+site/
+.release-tools/
