@@ -26,7 +26,7 @@ aip run examples/examiner.aiprompt --file examples/data.json --mock --pretty
 
 Use `--data` for an inline JSON object or `--file` for a JSON file. Inline values override file values. `--retries 2` allows one initial attempt plus two correction attempts. `--verbose` sends diagnostics to stderr. Successful stdout is JSON.
 
-`--mock` uses the built-in examiner fixture; use the local playground for schema-shaped fixtures with arbitrary schemas. Without a configured Gemini API key the CLI currently falls back to that fixture and warns on stderr. OpenAI, Anthropic, and Groq instead require their own credentials. Ollama requires a reachable server with the selected model installed, without an API key. See [providers](providers.md).
+`--mock` explicitly returns schema-shaped synthetic fixtures for any supported schema and labels the mode on stderr. It never contacts a model. Missing cloud credentials without mock mode produce an error and no success payload. Ollama needs a reachable server and installed model instead of an API key. In Python, use `run_aip(source, variables, mock=True)` or pass an explicit test client. See [providers](providers.md) and the [invoice example](invoice-example.md).
 
 ## Compile
 

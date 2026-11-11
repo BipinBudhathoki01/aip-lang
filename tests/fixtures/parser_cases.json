@@ -1,0 +1,319 @@
+[
+  {
+    "name": "nested collections",
+    "source": "system:\nRole {{ $role }}\nuser:\nHello {{ $name }} {{ $name }}\ngenerate as Payload { schema: { author: { name: string, verified: bool }, matrix: list[list[int]], scores: dict[string, float] } }",
+    "expected": {
+      "variables": [
+        "role",
+        "name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "author": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "verified"
+            ]
+          },
+          "matrix": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          },
+          "scores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "author",
+          "matrix",
+          "scores"
+        ],
+        "title": "Payload"
+      }
+    }
+  },
+  {
+    "name": "aliases",
+    "source": "user:\nAliases\ngenerate {schema:{i:integer,n:number,s:str,b:boolean,arr:array[float],lookup:map[str,bool]}}",
+    "expected": {
+      "variables": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "i": {
+            "type": "integer"
+          },
+          "n": {
+            "type": "number"
+          },
+          "s": {
+            "type": "string"
+          },
+          "b": {
+            "type": "boolean"
+          },
+          "arr": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "lookup": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          }
+        },
+        "required": [
+          "i",
+          "n",
+          "s",
+          "b",
+          "arr",
+          "lookup"
+        ]
+      }
+    }
+  },
+  {
+    "name": "trailing commas and empty objects",
+    "source": "user:\nHello\ngenerate as Empty { schema: { empty: {}, tags: list[string], }, }",
+    "expected": {
+      "variables": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "empty": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "empty",
+          "tags"
+        ],
+        "title": "Empty"
+      }
+    }
+  },
+  {
+    "name": "quoted punctuation and unicode",
+    "source": "user:\nHello {{ $person }}\ngenerate {model: \"mødel, schema: {नमस्ते}\", temperature: -2e-1, provider: \"ollama\", max_tokens: 123, schema:{answer:string}}",
+    "expected": {
+      "variables": [
+        "person"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ]
+      },
+      "model": "mødel, schema: {नमस्ते}",
+      "temperature": -0.2,
+      "options": {
+        "provider": "ollama",
+        "max_tokens": 123
+      }
+    }
+  },
+  {
+    "name": "inline reserved markers stay text",
+    "source": "user:\nExplain system: text, user: text and generate { examples }.\ngenerate as Inline {schema:{ok:bool}}",
+    "expected": {
+      "variables": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "Inline"
+      },
+      "user_contains": "system: text, user: text and generate { examples }"
+    }
+  },
+  {
+    "name": "line headers remain boundaries",
+    "source": "user:\nFirst {{ $first }}\nsystem:\nSecond {{ $second }}",
+    "expected": {
+      "variables": [
+        "second",
+        "first"
+      ],
+      "schema": null
+    }
+  },
+  {
+    "name": "generate without prompts",
+    "source": "generate {schema:{}}",
+    "expected": {
+      "variables": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    }
+  },
+  {
+    "name": "numeric configuration and escaped string",
+    "source": "user:\nHello\ngenerate {model:\"model\\\"name\",temperature:+.5,schema:{ok:bool}}",
+    "expected": {
+      "variables": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "model": "model\"name",
+      "temperature": 0.5
+    }
+  },
+  {
+    "name": "empty input",
+    "source": "",
+    "invalid": true
+  },
+  {
+    "name": "leading junk",
+    "source": "junk\nuser:\nHello",
+    "invalid": true
+  },
+  {
+    "name": "unclosed generate",
+    "source": "user:\nHello\ngenerate {schema:{score:int}",
+    "invalid": true
+  },
+  {
+    "name": "missing field colon",
+    "source": "user:\nHello\ngenerate {schema:{score int}}",
+    "invalid": true
+  },
+  {
+    "name": "missing config comma",
+    "source": "user:\nHello\ngenerate {model:\"model\" schema:{score:int}}",
+    "invalid": true
+  },
+  {
+    "name": "mismatched brackets",
+    "source": "user:\nHello\ngenerate {schema:{score:list[int}}",
+    "invalid": true
+  },
+  {
+    "name": "single quoted string",
+    "source": "user:\nHello\ngenerate {model:'model'}",
+    "invalid": true
+  },
+  {
+    "name": "malformed placeholder",
+    "source": "user:\nHello {{ name }}\ngenerate {schema:{ok:bool}}",
+    "invalid": true
+  },
+  {
+    "name": "unsupported type",
+    "source": "user:\nHello\ngenerate {schema:{score:decimal}}",
+    "invalid": true
+  },
+  {
+    "name": "list wrong arity",
+    "source": "user:\nHello\ngenerate {schema:{score:list[int,bool]}}",
+    "invalid": true
+  },
+  {
+    "name": "bare collection",
+    "source": "user:\nHello\ngenerate {schema:{score:list}}",
+    "invalid": true
+  },
+  {
+    "name": "non-string dictionary key",
+    "source": "user:\nHello\ngenerate {schema:{score:dict[int,bool]}}",
+    "invalid": true
+  },
+  {
+    "name": "trailing junk",
+    "source": "generate {schema:{ok:bool}} garbage",
+    "invalid": true
+  },
+  {
+    "name": "scalar schema",
+    "source": "generate {schema:42}",
+    "invalid": true
+  },
+  {
+    "name": "non-string model",
+    "source": "generate {model:true}",
+    "invalid": true
+  },
+  {
+    "name": "non-numeric temperature",
+    "source": "generate {temperature:\"hot\"}",
+    "invalid": true
+  },
+  {
+    "name": "empty user",
+    "source": "user:",
+    "invalid": true
+  },
+  {
+    "name": "malformed named declaration",
+    "source": "user:\nHello\ngenerate as {schema:{score:int}}",
+    "invalid": true
+  },
+  {
+    "name": "inline section after generate",
+    "source": "generate {schema:{}} user: Hello",
+    "invalid": true
+  },
+  {
+    "name": "split prompt header",
+    "source": "user\n: Hello",
+    "invalid": true
+  },
+  {
+    "name": "non-string provider",
+    "source": "generate {provider:{name:string},schema:{answer:string}}",
+    "invalid": true
+  }
+]

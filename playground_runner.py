@@ -2,24 +2,7 @@
 import json
 import sys
 from aip_parser import parse_aip
-from aip_runtime import MockGeminiClient, interpolate_ast_prompts, run_aip
-
-
-def sample_value(spec):
-    if spec.fields is not None:
-        return {k: sample_value(v) for k, v in spec.fields.items()}
-    name = spec.name.lower()
-    if name in ("list", "array"):
-        return []
-    if name in ("dict", "map"):
-        return {}
-    if name in ("int", "integer"):
-        return 0
-    if name in ("float", "number"):
-        return 0.0
-    if name in ("bool", "boolean"):
-        return False
-    return "Mock value"
+from aip_runtime import interpolate_ast_prompts, run_aip
 
 
 def process(payload):
@@ -30,8 +13,7 @@ def process(payload):
         raise ValueError("A generate block with a schema is required to run.")
     variables = payload.get("variables", {})
     system, user = interpolate_ast_prompts(ast, variables)
-    sample = {k: sample_value(v) for k, v in ast.generate.schema.items()}
-    result = run_aip(ast, variables, client=MockGeminiClient([json.dumps(sample)]))
+    result = run_aip(ast, variables, mock=True)
     return {"mode": "mock", "system": system, "user": user, "result": result}
 
 

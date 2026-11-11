@@ -1,0 +1,19 @@
+system:
+    Extract an invoice into the declared schema. Use only information present in
+    the input. Preserve the currency code and line item values. Do not invent
+    vendors or amounts. This example uses synthetic demonstration data.
+user:
+    Invoice text:
+    {{ $invoice_text }}
+generate as InvoiceResult {
+    model: "gemini-3.8-flash",
+    temperature: 0.1,
+    schema: {
+        invoice_number: string,
+        issued_on: string,
+        currency: string,
+        vendor: { name: string, address: string },
+        items: list[{ description: string, quantity: int, unit_price: float }],
+        total: float
+    }
+}

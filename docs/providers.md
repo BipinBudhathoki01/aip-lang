@@ -98,7 +98,7 @@ Set `OLLAMA_BASE_URL` in the runtime environment to override the server. For exa
 
 New providers omit `temperature` unless the prompt explicitly sets it. Some models reject temperature; leave it out for those models. Gemini retains its existing default of 0.2. Model IDs are passed through unchanged.
 
-Missing OpenAI, Anthropic, or Groq keys fail clearly; they never fall back to another provider or a mock. Ollama requires a reachable local/server installation rather than a key; connection and missing-model errors fail clearly too. The existing Gemini missing-key fallback remains for compatibility and is tracked separately. Use `--mock` explicitly for an offline CLI fixture; that fixture is examiner-specific. The local playground synthesizes fixtures for arbitrary supported schemas and never calls a provider.
+Missing Gemini, OpenAI, Anthropic, or Groq keys fail clearly; they never fall back to another provider or a mock. Ollama requires a reachable server with the selected model. Use explicit `--mock` or Python `mock=True` to generate deterministic schema-shaped fixtures for any supported schema. These fixtures are synthetic values, not model answers. The local playground uses explicit mock mode and never calls a provider.
 
 Runtime and generated Python/PHP executors support all five providers. OpenAI, Anthropic, Groq, and Ollama use HTTP(S) directly and need no additional Python SDK. Generated Python still requires Pydantic; Gemini execution additionally requires google-genai. Generated PHP requires cURL and JSON. HTTP adapters and generated PHP requests have a 30-second timeout, including Ollama model loading; pre-warm a slow local model if necessary. Refusals, empty outputs, provider failures, and truncation raise errors.
 

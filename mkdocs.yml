@@ -12,7 +12,9 @@ nav:
   - Overview: index.md
   - Quick start: quickstart.md
   - Language: language.md
+  - Parser behavior: parser-behavior.md
   - Providers: providers.md
+  - Invoice example: invoice-example.md
   - CLI: cli.md
   - PHP & Laravel: php.md
   - Contributing: contributing.md
