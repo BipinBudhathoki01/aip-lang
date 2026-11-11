@@ -21,7 +21,7 @@ Keep prompts and output expectations together. Review them in pull requests alon
 
 ## Native integration
 
-Generate a Python module with Pydantic models or a PHP class that calls Gemini, OpenAI, or Anthropic Claude directly. PHP does not need Python at runtime. See [provider configuration](providers.md).
+Generate a Python module with Pydantic models or a PHP class that calls Gemini, OpenAI, Anthropic Claude, Groq, or local Ollama directly. PHP does not need Python at runtime. See [provider configuration](providers.md).
 
 ## Validate, then return
 
@@ -33,7 +33,7 @@ Start with a local mock run without an API key. Help improve diagnostics, parser
 
 ## Status and boundaries
 
-Gemini, OpenAI, and Anthropic Claude are supported. Optional fields, enums, unions, streaming, and async execution are planned rather than implemented. The browser parser is a preview; Python is authoritative. This documentation site and the hosted playground are static. Run the local server for Python execution.
+Gemini, OpenAI, Anthropic Claude, Groq, and local Ollama are supported. Optional fields, enums, unions, streaming, and async execution are planned rather than implemented. The browser parser is a preview; Python is authoritative. This documentation site and the hosted playground are static. Run the local server for Python execution.
 
 ## About the extension
 

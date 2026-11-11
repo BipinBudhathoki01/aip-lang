@@ -1,0 +1,10 @@
+system:
+    Summarize support messages accurately and briefly.
+user:
+    Message: {{ $message }}
+generate as Summary {
+    provider: "groq",
+    model: "openai/gpt-oss-20b",
+    max_tokens: 1024,
+    schema: { summary: string, urgent: bool }
+}

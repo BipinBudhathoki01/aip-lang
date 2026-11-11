@@ -28,7 +28,7 @@ Save this as `ticket.aiprompt`. The earlier `.aip` extension still works. `.aip`
 - Prompt interpolation with missing-variable checks.
 - JSON Schema extraction and dynamic Pydantic output validation.
 - Bounded correction retries for malformed JSON or schema failures.
-- Gemini, OpenAI, and Anthropic Claude provider support in the runtime and generated code.
+- Gemini, OpenAI, Anthropic Claude, Groq, and Ollama support in the runtime and generated code.
 - Build-time Python and PHP code generation.
 - Astryx-based React playground with AST, schema, prompt previews, and offline mock execution.
 
@@ -61,13 +61,13 @@ aip compile examples/examiner.aiprompt --target python --out generated/examiner.
 aip compile examples/examiner.aiprompt --target php --out generated/ExaminerAip.php
 ```
 
-Generated Python requires `pydantic`; Gemini also requires `google-genai`. OpenAI and Anthropic use HTTPS directly with no additional SDK. Generated PHP requires PHP 8.1+ with cURL and JSON; Python is only needed during compilation. Generated results validate the supported schema subset and raise errors when retries are exhausted. See [PHP integration](docs/php.md).
+Generated Python requires `pydantic`; Gemini also requires `google-genai`. OpenAI, Anthropic, Groq, and Ollama use HTTP(S) directly with no additional SDK. Generated PHP requires PHP 8.1+ with cURL and JSON; Python is only needed during compilation. Generated results validate the supported schema subset and raise errors when retries are exhausted. See [PHP integration](docs/php.md).
 
 ## Choose a provider
 
-Set `provider: "openai"` with `OPENAI_API_KEY`, or `provider: "anthropic"` with `ANTHROPIC_API_KEY`, inside the generate block. Omitted provider defaults to Gemini. See [provider settings and examples](docs/providers.md), [OpenAI example](examples/openai-summary.aiprompt), and [Claude example](examples/claude-summary.aiprompt).
+Set `provider: "openai"`, `"anthropic"`, or `"groq"` with the matching `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GROQ_API_KEY`. For a local model, use `provider: "ollama"`; start Ollama and pull the selected model first. Ollama needs no API key, defaults to `http://127.0.0.1:11434`, and accepts an optional `OLLAMA_BASE_URL` server override. Omitted provider defaults to Gemini. See [provider settings and examples](docs/providers.md).
 
-Missing OpenAI/Anthropic credentials raise an error; they never silently switch to a mock. API access is separate from consumer ChatGPT/Claude subscriptions. Support is tested offline; live model access depends on your account.
+Missing cloud-provider credentials raise an error for OpenAI, Anthropic, and Groq; they never silently switch to a mock. API access is separate from consumer ChatGPT/Claude subscriptions. Support is tested offline; live model access depends on your account or local Ollama installation.
 
 ## Local playground
 

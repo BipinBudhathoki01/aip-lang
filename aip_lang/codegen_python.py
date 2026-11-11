@@ -9,7 +9,7 @@ import json
 import inspect
 from typing import Dict, Any, List
 from aip_parser import AIPScriptAST, TypeSpec, VariableToken, TextToken
-from aip_lang.providers import provider_settings, provider_request, provider_response, request_provider
+from aip_lang.providers import provider_settings, ollama_endpoint, provider_request, provider_response, request_provider
 
 
 def _type_spec_to_py_type(spec: TypeSpec, models=None, prefix="Nested") -> str:
@@ -44,7 +44,8 @@ def generate_python_code(ast: AIPScriptAST, module_name: str = "generated_aip") 
     """Compiles an AIPScriptAST into an independent Python module."""
     target_class = ast.generate.target_class if ast.generate and ast.generate.target_class else "AipOutput"
     provider, key_name, model_name, temperature, max_tokens = provider_settings(ast)
-    transport_source = "\n\n".join(inspect.getsource(function) for function in (provider_request, provider_response, request_provider))
+    transport_source = "\n\n".join(inspect.getsource(function) for function in (ollama_endpoint, provider_request, provider_response, request_provider))
+    key_expression = f"os.environ.get({key_name!r})" if key_name else "None"
 
     # Extract schema fields
     schema_fields = ast.generate.schema if ast.generate else {}
@@ -116,8 +117,8 @@ def run_{target_class.lower()}(
     """
     if max_retries < 0:
         raise ValueError("max_retries must be nonnegative.")
-    key = api_key or os.environ.get({key_name!r})
-    if not key:
+    key = api_key or {key_expression}
+    if {bool(key_name)!r} and not key:
         raise RuntimeError({key_name!r} + " is required.")
     if {provider!r} == "gemini" and not HAS_GENAI:
         raise RuntimeError("Install google-genai for Gemini execution.")

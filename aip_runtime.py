@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AIP (AI Scripting DSL) Execution Runtime
-Executes parsed prompt contracts against Gemini, OpenAI, or Anthropic with:
+Executes parsed prompt contracts against the selected cloud or local provider with:
 1. Strict dynamic Pydantic model synthesis
 2. Safe template variable interpolation with KeyError enforcement
 3. Auto-healing correction loop for invalid JSON or Pydantic validation failures (up to 2 retries)

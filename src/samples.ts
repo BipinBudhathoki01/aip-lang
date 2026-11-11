@@ -121,4 +121,39 @@ generate as Summary {
 }
 `,
   },
+  {
+    id: "groq-summary",
+    name: "Groq summary",
+    description: "Summary contract using groq",
+    defaultVariables: { message: "I cannot access my account and need help today." },
+    code: `system:
+    Summarize support messages accurately and briefly.
+user:
+    Message: {{ $message }}
+generate as Summary {
+    provider: "groq",
+    model: "openai/gpt-oss-20b",
+    max_tokens: 1024,
+    schema: { summary: string, urgent: bool }
+}
+`,
+  },
+  {
+    id: "ollama-summary",
+    name: "Ollama local summary",
+    description: "Summary contract using ollama",
+    defaultVariables: { message: "I cannot access my account and need help today." },
+    code: `system:
+    Summarize support messages accurately and briefly.
+user:
+    Message: {{ $message }}
+generate as Summary {
+    provider: "ollama",
+    model: "llama3.2",
+    max_tokens: 1024,
+    temperature: 0.2,
+    schema: { summary: string, urgent: bool }
+}
+`,
+  },
 ];
